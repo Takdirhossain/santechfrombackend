@@ -7,6 +7,60 @@ app.use(cors());
 app.use(express.json());
 const handlebars = require("handlebars");
 const fs = require("fs");
+const Razorpay = require('razorpay');
+const stripe = require('stripe')('sk_test_51N5av4SAHh9BgXprWRwEyrRHMHfgwAQhN3Y1iP3Zy9xpK9kg25JNGDVPWh834h9VM4bQLhMgTB8RV8EEQEH0BUgH00tK5jFa3C');
+
+app.use(express.json());
+app.use(cors());
+
+const razorpay = new Razorpay({
+  key_id: 'rzp_test_WjQrOkgltnhkbY',
+  key_secret: 'm4Mrb5DiykHS7xUeWoDaVhv4',
+});
+
+app.post('/order', async (req, res) => {
+  const amount = req.body.amount * 100;
+  const currency = "INR";
+  const options = {
+    amount: amount,
+    currency: currency,
+   
+    receipt: 'order_rcptid_11',
+    payment_capture: 1,
+  };
+razorpay.orders.create(options, function(err, order){
+ if(err){
+  return res.send({message: "server error"})
+ }
+ return res.send({message: "order created", data:order})
+})
+
+});
+
+app.post('/stripe', async (req, res) => {
+  const { name, email, amount } = req.body;
+
+  try {
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: amount * 100,
+      currency: 'usd',
+      description: `Payment for ${name} (${email})`,
+      metadata: { name, email },
+    });
+
+    res.json(paymentIntent);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Error creating payment intent');
+  }
+});
+
+
+
+
+
+
+
 
 //stored pdf file name for mailing
 let filename;
