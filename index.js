@@ -3,7 +3,7 @@ const app = express();
 const nodemailer = require("nodemailer");
 const multer = require("multer");
 const cors = require("cors");
-app.use(cors());
+const port = 5000
 app.use(express.json());
 const handlebars = require("handlebars");
 const fs = require("fs");
@@ -38,22 +38,63 @@ razorpay.orders.create(options, function(err, order){
 });
 
 app.post('/stripe', async (req, res) => {
-  const { name, email, amount } = req.body;
+  const { amount, fulladdress, password, distance, permission, currency, name, email } = req.body;
 
   try {
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: amount * 100,
-      currency: 'usd',
-      description: `Payment for ${name} (${email})`,
-      metadata: { name, email },
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price_data: {
+            currency: currency,
+            product_data: {
+              name: 'Product Name',
+            },
+            unit_amount: amount * 100,
+          },
+          quantity: 1,
+        },
+      ],
+      mode: 'payment',
+      success_url: 'http://localhost:3000/regindivudal',
+      cancel_url: 'http://localhost:3000/regindivudal',
     });
 
-    res.json(paymentIntent);
-  } catch (error) {
-    console.error(error);
-    res.status(500).send('Error creating payment intent');
+    res.json({ id: session.id });
+    console.log(name, email, amount, currency, session);
+
+    
+    if(session.status === "open"){
+      const emailSource = fs.readFileSync("./templete/induvidual/index.html", "utf-8");
+      const emailTemplate = handlebars.compile(emailSource);
+      const emailHtml = emailTemplate({
+        email: email,
+        password: password,
+        amount: amount,
+      });
+    
+      let message = {
+        from: "takdirhossain35@gmail.com", // sender address
+        to: `${email}`, // list of receivers
+        subject: "Registration Success", // Subject line
+        html: emailHtml,
+      };
+      transporter
+      .sendMail(message)
+      .then((info) => {
+       
+      })
+      .catch((err) => {
+       
+      });
+    }
+    }
+   catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Failed to create checkout session.' });
   }
 });
+
 
 
 
@@ -89,10 +130,10 @@ let transporter = nodemailer.createTransport({
 
 //registation form
 app.post("/registration", (req, res) => {
-  const { email, partnerId } = req.body;
+  const {name,country,state,city,businessName,Businesscate, email, partnerId } = req.body;
 
   //handalebers for email templates
-  const emailSource = fs.readFileSync("registration.html", "utf-8");
+  const emailSource = fs.readFileSync("./templete/regtemplete/index.html", "utf-8");
   const emailTemplate = handlebars.compile(emailSource);
   const emailHtml = emailTemplate({
     partnerId: partnerId,
@@ -100,12 +141,36 @@ app.post("/registration", (req, res) => {
 
   let message = {
     from: "takdirhossain35@gmail.com", // sender address
-    to: `${email}, villegasemanuel23@gmail.com`, // list of receivers
+    to: `${email}`, // list of receivers
     subject: "Registration Success", // Subject line
     html: emailHtml,
   };
+  let messageadmin = {
+    from: "takdirhossain35@gmail.com", // sender address
+    to: `iamtakdir619@gmail.com`, // list of receivers
+    subject: "Registration Success", // Subject line
+    html:`
+    New Partner Registation success
+    name: ${name},
+    country: ${country}
+    state: ${state},
+    City: ${city},
+    businessName: ${businessName},
+    Business Category:  ${Businesscate}
+    `,
+  };
   transporter
     .sendMail(message)
+    .then((info) => {
+      return res.send({
+        partnerId,
+      });
+    })
+    .catch((err) => {
+      return res.send("someting wrong");
+    });
+  transporter
+    .sendMail(messageadmin)
     .then((info) => {
       return res.send({
         partnerId,
@@ -120,7 +185,7 @@ app.post("/registration", (req, res) => {
 app.post("/subscription", (req, res) => {
   const { email, pass, Package, visits, date } = req.body;
 
-  const emailSource = fs.readFileSync("email.html", "utf-8");
+  const emailSource = fs.readFileSync("./templete/partnertemplete/index.html", "utf-8");
   const emailTemplate = handlebars.compile(emailSource);
   const emailHtml = emailTemplate({
     pass: pass,
@@ -132,7 +197,7 @@ app.post("/subscription", (req, res) => {
 
   let message = {
     from: "takdirhossain35@gmail.com",
-    to: `${email}, villegasemanuel23@gmail.com`,
+    to: `${email}`,
     subject: "Subscription success",
     html: emailHtml,
   };
@@ -172,7 +237,7 @@ app.post("/career", upload, async (req, res) => {
 
   let message = {
     from: email, // sender address
-    to: "villegasemanuel23@gmail.com", // list of receivers
+    to: "iamtakdir619@gmail.com", // list of receivers
     subject: "Job Applications", // Subject line
     text: `
     New Application arrived
@@ -209,6 +274,10 @@ app.post("/career", upload, async (req, res) => {
     });
 });
 
-app.listen(5000, () => {
-  console.log("server is running");
+app.get("/", (req, res)=> {
+  res.send("Our server is running")
+})
+
+app.listen(port, () => {
+  console.log(`server is running ${port}`);
 });
