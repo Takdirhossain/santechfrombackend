@@ -1,78 +1,115 @@
 const express = require("express");
 const app = express();
 const nodemailer = require("nodemailer");
+const mongoose = require("mongoose");
 const multer = require("multer");
 const cors = require("cors");
-const port = 5000
+const port = 5000;
+const env = require("dotenv");
+
+const Partner = require("./models/Partner");
+const auth = require("./routes/auth")
+env.config();
 app.use(express.json());
 const handlebars = require("handlebars");
 const fs = require("fs");
-const Razorpay = require('razorpay');
-const stripe = require('stripe')('sk_test_51N5av4SAHh9BgXprWRwEyrRHMHfgwAQhN3Y1iP3Zy9xpK9kg25JNGDVPWh834h9VM4bQLhMgTB8RV8EEQEH0BUgH00tK5jFa3C');
+const Razorpay = require("razorpay");
+const stripe = require("stripe")(
+  "sk_test_51N5av4SAHh9BgXprWRwEyrRHMHfgwAQhN3Y1iP3Zy9xpK9kg25JNGDVPWh834h9VM4bQLhMgTB8RV8EEQEH0BUgH00tK5jFa3C"
+);
 
 app.use(express.json());
 app.use(cors());
 
+//mongodb connection
+
+mongoose.set("strictQuery", true);
+mongoose
+  .connect(process.env.MONGODBURL, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  })
+  .then(() => {
+    console.log("database is connected");
+    app.listen(port, () => {
+      console.log(`server is running ${port}`);
+    });
+  });
+
 const razorpay = new Razorpay({
-  key_id: 'rzp_test_WjQrOkgltnhkbY',
-  key_secret: 'm4Mrb5DiykHS7xUeWoDaVhv4',
+  key_id: "rzp_test_WjQrOkgltnhkbY",
+  key_secret: "m4Mrb5DiykHS7xUeWoDaVhv4",
 });
 
-app.post('/order', async (req, res) => {
-  const amount = req.body.amount * 100;
+//routes
+app.use("/auth", auth)
+
+
+app.post("/order", async (req, res) => {
+  const { amount, fulladdress, password, distance, permission, name, email } =
+    req.body;
   const currency = "INR";
   const options = {
     amount: amount,
     currency: currency,
-   
-    receipt: 'order_rcptid_11',
+
+    receipt: "order_rcptid_11",
     payment_capture: 1,
   };
-razorpay.orders.create(options, function(err, order){
- if(err){
-  return res.send({message: "server error"})
- }
- return res.send({message: "order created", data:order})
-})
-
+  razorpay.orders.create(options, function (err, order) {
+    if (err) {
+      return res.send({ message: "server error" });
+    }
+    return res.send({ message: "order created", data: order });
+  });
 });
 
-app.post('/stripe', async (req, res) => {
-  const { amount, fulladdress, password, distance, permission, currency, name, email } = req.body;
+app.post("/stripe", async (req, res) => {
+  const {
+    amount,
+    fulladdress,
+    password,
+    distance,
+    permission,
+    currency,
+    name,
+    email,
+  } = req.body;
 
   try {
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
+      payment_method_types: ["card"],
       line_items: [
         {
           price_data: {
             currency: currency,
             product_data: {
-              name: 'Product Name',
+              name: "Product Name",
             },
             unit_amount: amount * 100,
           },
           quantity: 1,
         },
       ],
-      mode: 'payment',
-      success_url: 'http://localhost:3000/regindivudal',
-      cancel_url: 'http://localhost:3000/regindivudal',
+      mode: "payment",
+      success_url: `${req.protocol}://${req.get("host")}${req.originalUrl}`,
+      cancel_url: "http://localhost:3000/regindivudal",
     });
 
     res.json({ id: session.id });
-    console.log(name, email, amount, currency, session);
 
-    
-    if(session.status === "open"){
-      const emailSource = fs.readFileSync("./templete/induvidual/index.html", "utf-8");
+    if (session.status === "open") {
+      const emailSource = fs.readFileSync(
+        "./templete/induvidual/index.html",
+        "utf-8"
+      );
       const emailTemplate = handlebars.compile(emailSource);
       const emailHtml = emailTemplate({
         email: email,
         password: password,
         amount: amount,
       });
-    
+
       let message = {
         from: "takdirhossain35@gmail.com", // sender address
         to: `${email}`, // list of receivers
@@ -80,28 +117,20 @@ app.post('/stripe', async (req, res) => {
         html: emailHtml,
       };
       transporter
-      .sendMail(message)
-      .then((info) => {
-       
-      })
-      .catch((err) => {
-       
-      });
+        .sendMail(message)
+        .then((info) => {})
+        .catch((err) => {});
     }
-    }
-   catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ error: 'Failed to create checkout session.' });
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ error: "Failed to create checkout session." });
   }
 });
 
-
-
-
-
-
-
-
+app.post("/another", (req, res) => {
+  const { name } = req.body;
+  console.log(name);
+});
 
 //stored pdf file name for mailing
 let filename;
@@ -129,11 +158,26 @@ let transporter = nodemailer.createTransport({
 });
 
 //registation form
-app.post("/registration", (req, res) => {
-  const {name,country,state,city,businessName,Businesscate, email, partnerId } = req.body;
-
+app.post("/registration", async (req, res) => {
+  const newPartner = new Partner(req.body);
+  const {
+    name,
+    country,
+    state,
+    city,
+    businessName,
+    Businesscate,
+    email,
+    partnerId,
+  } = req.body;
+try{
+const savePartner = await newPartner.save()
+res.status(200).json(`Data update successful ${savePartner}`)
   //handalebers for email templates
-  const emailSource = fs.readFileSync("./templete/regtemplete/index.html", "utf-8");
+  const emailSource = fs.readFileSync(
+    "./templete/regtemplete/index.html",
+    "utf-8"
+  );
   const emailTemplate = handlebars.compile(emailSource);
   const emailHtml = emailTemplate({
     partnerId: partnerId,
@@ -149,7 +193,7 @@ app.post("/registration", (req, res) => {
     from: "takdirhossain35@gmail.com", // sender address
     to: `iamtakdir619@gmail.com`, // list of receivers
     subject: "Registration Success", // Subject line
-    html:`
+    html: `
     New Partner Registation success
     name: ${name},
     country: ${country}
@@ -179,13 +223,20 @@ app.post("/registration", (req, res) => {
     .catch((err) => {
       return res.send("someting wrong");
     });
+}catch(err){
+res.status(500).json(err)
+}
+
 });
 
 //subscription form
 app.post("/subscription", (req, res) => {
   const { email, pass, Package, visits, date } = req.body;
 
-  const emailSource = fs.readFileSync("./templete/partnertemplete/index.html", "utf-8");
+  const emailSource = fs.readFileSync(
+    "./templete/partnertemplete/index.html",
+    "utf-8"
+  );
   const emailTemplate = handlebars.compile(emailSource);
   const emailHtml = emailTemplate({
     pass: pass,
@@ -274,10 +325,6 @@ app.post("/career", upload, async (req, res) => {
     });
 });
 
-app.get("/", (req, res)=> {
-  res.send("Our server is running")
-})
-
-app.listen(port, () => {
-  console.log(`server is running ${port}`);
+app.get("/", (req, res) => {
+  res.send("Our server is running");
 });
