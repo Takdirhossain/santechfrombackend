@@ -9,6 +9,9 @@ const env = require("dotenv");
 
 const Partner = require("./models/Partner");
 const auth = require("./routes/auth")
+const partner = require("./routes/partner")
+const commisionhistory = require("./routes/commisionhistory")
+const test = require("./routes/test")
 env.config();
 app.use(express.json());
 const handlebars = require("handlebars");
@@ -43,6 +46,9 @@ const razorpay = new Razorpay({
 
 //routes
 app.use("/auth", auth)
+app.use("/auth", partner)
+app.use("/auth", test)
+app.use("/auth", commisionhistory)
 
 
 app.post("/order", async (req, res) => {
@@ -211,7 +217,7 @@ res.status(200).json(`Data update successful ${savePartner}`)
       });
     })
     .catch((err) => {
-      return res.send("someting wrong");
+      
     });
   transporter
     .sendMail(messageadmin)
@@ -221,7 +227,7 @@ res.status(200).json(`Data update successful ${savePartner}`)
       });
     })
     .catch((err) => {
-      return res.send("someting wrong");
+      
     });
 }catch(err){
 res.status(500).json(err)

@@ -7,10 +7,10 @@ router.post("/partnerlogin", async (req, res) => {
   try {
     const user = await Partner.findOne({ partnerId: req.body.partnerId })
     !user && res.status(401).json("Cant find the user")
-    const accesstoken = jwt.sign({id:user._id}, "testkey", {expiresIn:"5d"})
+    const accesstoken = jwt.sign({id:user._id}, process.env.SECRET_KEY, {expiresIn:"5d"})
     res.status(200).json({user, accesstoken})
   } catch (err) {
-    res.status(500).json(err)
+    res.status(500).json("Cant find user")
   }
 });
 router.post("/adminreg", async (req, res) => {
