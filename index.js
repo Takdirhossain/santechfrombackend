@@ -13,6 +13,7 @@ const partner = require("./routes/partner")
 const commisionhistory = require("./routes/commisionhistory")
 const test = require("./routes/test")
 const payment = require("./routes/payment")
+const message = require("./routes/message")
 env.config();
 app.use(express.json());
 const handlebars = require("handlebars");
@@ -51,6 +52,7 @@ app.use("/auth", partner)
 app.use("/auth", test)
 app.use("/auth", commisionhistory)
 app.use("/auth", payment)
+app.use("/auth", message)
 
 
 app.post("/order", async (req, res) => {
