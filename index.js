@@ -170,6 +170,7 @@ let transporter = nodemailer.createTransport({
 //registation form
 app.post("/registration", async (req, res) => {
   const newPartner = new Partner(req.body);
+  console.log(req.body);
   const {
     name,
     country,
@@ -182,7 +183,8 @@ app.post("/registration", async (req, res) => {
   } = req.body;
 try{
 const savePartner = await newPartner.save()
-res.status(200).json(`Data update successful ${savePartner}`)
+res.status(200).json(partnerId)
+console.log(partnerId);
   //handalebers for email templates
   const emailSource = fs.readFileSync(
     "./templete/regtemplete/index.html",
@@ -234,7 +236,7 @@ res.status(200).json(`Data update successful ${savePartner}`)
       
     });
 }catch(err){
-res.status(500).json(err)
+res.status(500).json("cant add data")
 }
 
 });

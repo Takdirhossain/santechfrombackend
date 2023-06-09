@@ -1,5 +1,5 @@
 const router = require("express").Router();
-const Commisionhistory = require("../models/Commisionhistory")
+const Commisionhistory = require("../models/CommissionRaffer")
 //raffer history
 router.post("/admin/commisionhistory", async (req, res) => {
   const newcommision = new Commisionhistory(req.body);
